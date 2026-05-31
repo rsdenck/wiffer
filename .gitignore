@@ -15,3 +15,6 @@ docs/credenciais/pass.md
 
 # Runtime state
 var/logs/
+
+# Local instructions with sensitive data
+hub.md
