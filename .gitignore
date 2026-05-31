@@ -1,0 +1,17 @@
+node_modules/
+__pycache__/
+*.pyc
+dist/
+.env
+*.log
+portal.out
+
+# Sensitive data - real captured credentials
+captures/credenciais/todas.txt
+captures/credenciais/*.json
+
+# ERROR 404 password
+docs/credenciais/pass.md
+
+# Runtime state
+var/logs/

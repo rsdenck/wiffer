@@ -1,0 +1,7 @@
+
+BSSID, First time seen, Last time seen, channel, Speed, Privacy, Cipher, Authentication, Power, # beacons, # IV, LAN IP, ID-length, ESSID, Key
+EC:E7:A2:7D:8B:90, 2026-05-30 09:08:46, 2026-05-30 09:09:27,  6, 130, WPA2 WPA, CCMP, PSK, -73,      164,       52,   0.  0.  0.  0,  15, BJNET - Quisela, 
+
+Station MAC, First time seen, Last time seen, Power, # packets, BSSID, Probed ESSIDs
+A8:E6:21:99:89:68, 2026-05-30 09:08:47, 2026-05-30 09:09:27, -79,      653, EC:E7:A2:7D:8B:90,
+

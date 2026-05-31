@@ -1,0 +1,1014 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Wifi, 
+  ShieldAlert, 
+  Users, 
+  Key, 
+  Terminal, 
+  Settings, 
+  Play, 
+  Square, 
+  Trash2, 
+  Download, 
+  Radio, 
+  Database, 
+  Network, 
+  Cpu, 
+  RefreshCw, 
+  AlertTriangle, 
+  CheckCircle, 
+  Info, 
+  ExternalLink,
+  Lock,
+  Globe,
+  WifiOff
+} from 'lucide-react';
+
+export default function App() {
+  // --- ESTADOS GLOBAIS ---
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isApRunning, setIsApRunning] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('wifi_generic');
+  const [apConfig, setApConfig] = useState({
+    ssid: 'WIFI_AEROPORTO_GRATIS',
+    channel: '6',
+    interface: 'wlan0mon',
+    security: 'Open',
+    bssid: '00:11:22:33:44:55',
+    txPower: '20'
+  });
+  
+  // --- SIMULAÇÃO DE DADOS DINÂMICOS ---
+  const [clients, setClients] = useState([
+    { id: 1, mac: 'D4:A3:3D:88:C1:02', ip: '192.168.1.12', hostname: 'iPhone-de-Pedro', signal: -62, traffic: 124.5, connectedTime: '12m 4s', os: 'iOS' },
+    { id: 2, mac: '70:F3:95:1A:BC:D4', ip: '192.168.1.45', hostname: 'Sams-S24-Ana', signal: -45, traffic: 342.1, connectedTime: '08m 15s', os: 'Android' },
+    { id: 3, mac: '00:1C:42:1F:B3:9E', ip: '192.168.1.89', hostname: 'MacBook-Pro-Work', signal: -78, traffic: 890.3, connectedTime: '03m 50s', os: 'macOS' },
+  ]);
+
+  const [credentials, setCredentials] = useState([
+    { id: 1, ip: '192.168.1.12', mac: 'D4:A3:3D:88:C1:02', service: 'Facebook Fake Login', user: 'pedro.silva@email.pt', pass: 'p3dr0_secret123', time: '18:45:12', status: 'Capturado' },
+    { id: 2, ip: '192.168.1.45', mac: '70:F3:95:1A:BC:D4', service: 'WPA2 Handshake', user: 'Handshake de Rede', pass: 'MIC/WPA-PMKID guardado', time: '18:49:33', status: 'Inundado' },
+    { id: 3, ip: '192.168.1.89', mac: '00:1C:42:1F:B3:9E', service: 'Página de Router Clássica', user: 'admin', pass: 'admin1234', time: '18:51:02', status: 'Sucesso' }
+  ]);
+
+  const [logs, setLogs] = useState([
+    { id: 1, time: '18:40:01', level: 'info', service: 'dnsmasq', message: 'Servidor DHCP iniciado em wlan0mon (192.168.1.1 - 192.168.1.150)' },
+    { id: 2, time: '18:40:02', level: 'info', service: 'hostapd', message: 'Interface wlan0mon configurada para Canal 6 - IEEE 802.11bgn' },
+    { id: 3, time: '18:40:05', level: 'success', service: 'system', message: 'FakeAP iniciado com sucesso. SSID: WIFI_AEROPORTO_GRATIS' },
+    { id: 4, time: '18:41:20', level: 'warning', service: 'hostapd', message: 'Cliente D4:A3:3D:88:C1:02 associado' },
+    { id: 5, time: '18:41:21', level: 'info', service: 'dnsmasq', message: 'DHCPACK no 192.168.1.12 para D4:A3:3D:88:C1:02 (iPhone-de-Pedro)' },
+    { id: 6, time: '18:45:12', level: 'danger', service: 'captive-portal', message: 'Credenciais recolhidas de 192.168.1.12 (Facebook Fake Login)' },
+  ]);
+
+  const [notification, setNotification] = useState(null);
+  const [trafficStats, setTrafficStats] = useState({ up: 1.2, down: 4.8 });
+  const [uptime, setUptime] = useState(0);
+  const logsEndRef = useRef(null);
+
+  // --- MODELO DOS CAPTIVE PORTALS DISPONÍVEIS ---
+  const templates = [
+    { id: 'wifi_generic', name: 'Autenticação Wi-Fi Genérica', type: 'Rede', desc: 'Página padrão do router a solicitar senha de rede.' },
+    { id: 'google_oauth', name: 'Google OAuth Single Sign-On', type: 'OAuth', desc: 'Simula o login oficial do Google para aceder à internet.' },
+    { id: 'facebook_login', name: 'Facebook Connect Portal', type: 'Rede Social', desc: 'Formulário de login otimizado para dispositivos móveis.' },
+    { id: 'microsoft_365', name: 'Office 365 / Microsoft Portal', type: 'Corporativo', desc: 'Ideal para auditorias em redes empresariais.' },
+  ];
+
+  // --- EFEITOS DE SIMULAÇÃO ---
+  useEffect(() => {
+    let interval;
+    if (isApRunning) {
+      interval = setInterval(() => {
+        setUptime(prev => prev + 1);
+        setTrafficStats(prev => ({
+          up: parseFloat((prev.up + (Math.random() * 0.4 - 0.2)).toFixed(1)),
+          down: parseFloat((prev.down + (Math.random() * 1.5 - 0.5)).toFixed(1))
+        }));
+      }, 1000);
+    } else {
+      setUptime(0);
+      setTrafficStats({ up: 0, down: 0 });
+    }
+    return () => clearInterval(interval);
+  }, [isApRunning]);
+
+  useEffect(() => {
+    if (!isApRunning) return;
+
+    const eventInterval = setInterval(() => {
+      const actions = ['join', 'traffic', 'cred', 'log'];
+      const randomAction = actions[Math.floor(Math.random() * actions.length)];
+
+      if (randomAction === 'join' && clients.length < 6) {
+        const newMac = `00:E0:4C:${Math.floor(Math.random()*90+10)}:${Math.floor(Math.random()*90+10)}:${Math.floor(Math.random()*90+10)}`;
+        const newIp = `192.168.1.${Math.floor(Math.random() * 100 + 100)}`;
+        const hostnames = ['Galaxy-S22', 'Huawei-P30-Pro', 'iPad-de-Escola', 'PC-Portatil-HP', 'Alexa-SmartSpeaker'];
+        const newHost = hostnames[Math.floor(Math.random() * hostnames.length)];
+        const osList = ['Android', 'Android', 'iOS', 'Windows', 'IoT'];
+        const newOs = osList[Math.floor(Math.random() * osList.length)];
+        
+        const newClient = {
+          id: Date.now(),
+          mac: newMac,
+          ip: newIp,
+          hostname: newHost,
+          signal: -Math.floor(Math.random() * 40 + 40),
+          traffic: 0.1,
+          connectedTime: '00m 01s',
+          os: newOs
+        };
+
+        setClients(prev => [...prev, newClient]);
+        addLog('hostapd', `Cliente ${newMac} associado`, 'warning');
+        addLog('dnsmasq', `DHCPACK no ${newIp} para ${newMac} (${newHost})`, 'info');
+        showToast(`Novo cliente conectado: ${newHost}`, 'info');
+
+      } else if (randomAction === 'cred') {
+        if (clients.length === 0) return;
+        const targetClient = clients[Math.floor(Math.random() * clients.length)];
+        const serviceNames = ['Facebook Connect Portal', 'Autenticação Wi-Fi Genérica', 'Google OAuth Single Sign-On'];
+        const chosenService = serviceNames[Math.floor(Math.random() * serviceNames.length)];
+        const usernames = ['admin@empresa.pt', 'joao.rod@gmail.com', 'clara_silva99', 'supervisor@net.com'];
+        const passwords = ['qwerty12345', 'passsegura987', 'amor2026', 'net_free_pass'];
+
+        const newCred = {
+          id: Date.now(),
+          ip: targetClient.ip,
+          mac: targetClient.mac,
+          service: chosenService,
+          user: usernames[Math.floor(Math.random() * usernames.length)],
+          pass: passwords[Math.floor(Math.random() * passwords.length)],
+          time: new Date().toLocaleTimeString(),
+          status: 'Capturado'
+        };
+
+        setCredentials(prev => [newCred, ...prev]);
+        addLog('captive-portal', `Credenciais recolhidas de ${targetClient.ip} (${chosenService})`, 'danger');
+        showToast(`SUCESSO: Credencial interceptada de ${targetClient.hostname}!`, 'success');
+      } else {
+        const genericMessages = [
+          'Interface wlan0mon mudou de estado para ativa',
+          'Enviando Deauth Packet generalizado para forçar reconexões...',
+          'A consultar tabela de roteamento local',
+          'Bloqueado tráfego DNS não autorizado'
+        ];
+        addLog('system', genericMessages[Math.floor(Math.random() * genericMessages.length)], 'info');
+      }
+    }, 12000);
+
+    return () => clearInterval(eventInterval);
+  }, [isApRunning, clients]);
+
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs]);
+
+  // --- FUNÇÕES AUXILIARES ---
+  const addLog = (service, message, level = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev, { id: Date.now(), time, level, service, message }]);
+  };
+
+  const showToast = (message, type = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleStartStopAp = () => {
+    if (isApRunning) {
+      setIsApRunning(false);
+      addLog('system', 'FakeAP parado pelo administrador.', 'warning');
+      showToast('FakeAP parado', 'warning');
+    } else {
+      setIsApRunning(true);
+      addLog('system', `Iniciando FakeAP com SSID: ${apConfig.ssid}...`, 'info');
+      addLog('hostapd', `A monitorizar na interface ${apConfig.interface}`, 'info');
+      showToast('FakeAP iniciado!', 'success');
+    }
+  };
+
+  const handleSaveConfig = (e) => {
+    e.preventDefault();
+    addLog('system', `Configurações atualizadas: SSID=${apConfig.ssid}, Canal=${apConfig.channel}`, 'info');
+    showToast('Configurações guardadas com sucesso!', 'success');
+  };
+
+  const handleKickClient = (id, hostname) => {
+    setClients(prev => prev.filter(c => c.id !== id));
+    addLog('hostapd', `Cliente ${hostname} deautenticado manualmente (Kicked)`, 'warning');
+    showToast(`${hostname} desconectado da rede`, 'info');
+  };
+
+  const clearCredentials = () => {
+    setCredentials([]);
+    showToast('Histórico de credenciais limpo', 'info');
+  };
+
+  const formatUptime = (totalSeconds) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col antialiased">
+      
+      {/* --- TOAST NOTIFICATION --- */}
+      {notification && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-lg border shadow-xl animate-bounce backdrop-blur-md transition-all duration-300 bg-slate-900 border-slate-700">
+          {notification.type === 'success' && <CheckCircle className="text-emerald-500 h-5 w-5" />}
+          {notification.type === 'warning' && <AlertTriangle className="text-amber-500 h-5 w-5" />}
+          {notification.type === 'danger' && <ShieldAlert className="text-rose-500 h-5 w-5" />}
+          {notification.type === 'info' && <Info className="text-cyan-500 h-5 w-5" />}
+          <span className="text-sm font-medium">{notification.message}</span>
+        </div>
+      )}
+
+      {/* --- TOPO / CABEÇALHO --- */}
+      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${isApRunning ? 'bg-emerald-500/10 text-emerald-400 animate-pulse' : 'bg-slate-800 text-slate-400'}`}>
+            <Wifi className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-wider text-slate-50 flex items-center gap-2">
+              FakeAP <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-indigo-400 border border-slate-700">v2.4-BETA</span>
+            </h1>
+            <p className="text-xs text-slate-400">Suite de Auditoria e Simulação de Rogue Access Point</p>
+          </div>
+        </div>
+
+        {/* Indicadores rápidos */}
+        <div className="flex flex-wrap items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800">
+            <Cpu className="h-4 w-4 text-cyan-500" />
+            <div className="text-left">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">Uso do CPU</p>
+              <p className="text-xs font-mono font-bold text-slate-300">14.2%</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800">
+            <Radio className="h-4 w-4 text-indigo-400" />
+            <div className="text-left">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">Interface</p>
+              <p className="text-xs font-mono font-bold text-slate-300">{apConfig.interface}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800">
+            <span className={`h-2.5 w-2.5 rounded-full ${isApRunning ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            <div className="text-left">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">Estado AP</p>
+              <p className="text-xs font-mono font-bold text-slate-300">{isApRunning ? 'Ativo' : 'Parado'}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleStartStopAp}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-bold text-sm tracking-wide transition-all duration-300 shadow-md ${
+              isApRunning 
+                ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-900/20' 
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20'
+            }`}
+          >
+            {isApRunning ? (
+              <>
+                <Square className="h-4 w-4 fill-white" />
+                <span>PARAR AP</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 fill-white" />
+                <span>INICIAR AP</span>
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* --- GRID PRINCIPAL --- */}
+      <div className="flex-1 flex flex-col lg:flex-row">
+        
+        {/* SIDEBAR DE NAVEGAÇÃO */}
+        <aside className="w-full lg:w-64 bg-slate-900/80 border-b lg:border-b-0 lg:border-r border-slate-800 p-4 space-y-2">
+          <p className="text-[11px] font-bold text-slate-500 uppercase px-3 tracking-widest mb-3">Auditoria e Controlo</p>
+          <nav className="space-y-1">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Network className="h-4 w-4" />
+                <span>Ecrã Principal</span>
+              </div>
+              <span className="text-[10px] bg-slate-950 text-indigo-400 px-1.5 py-0.5 rounded font-bold border border-slate-800">Live</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'config'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              }`}
+            >
+              <Settings className="h-4 w-4" />
+              <span>Configuração AP</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('clients')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'clients'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Users className="h-4 w-4" />
+                <span>Clientes Conectados</span>
+              </div>
+              {clients.length > 0 && (
+                <span className="text-xs bg-slate-950 text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-slate-800">
+                  {clients.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('credentials')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'credentials'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Key className="h-4 w-4" />
+                <span>Credenciais Capturadas</span>
+              </div>
+              {credentials.length > 0 && (
+                <span className="text-xs bg-rose-950/80 text-rose-400 font-mono px-2 py-0.5 rounded-full border border-rose-900/30">
+                  {credentials.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'logs'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              }`}
+            >
+              <Terminal className="h-4 w-4" />
+              <span>Visualizador de Logs</span>
+            </button>
+          </nav>
+
+          <div className="pt-6 mt-6 border-t border-slate-800">
+            <p className="text-[11px] font-bold text-slate-500 uppercase px-3 tracking-widest mb-3">Modelos de Phishing</p>
+            <div className="space-y-1">
+              {templates.map(t => (
+                <div 
+                  key={t.id}
+                  onClick={() => {
+                    setSelectedTemplate(t.id);
+                    showToast(`Modelo alterado para: ${t.name}`, 'info');
+                  }}
+                  className={`group cursor-pointer p-2 rounded-md transition-all ${
+                    selectedTemplate === t.id 
+                      ? 'bg-indigo-950/40 border border-indigo-500/30 text-indigo-300' 
+                      : 'hover:bg-slate-800/40 border border-transparent text-slate-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold">{t.name}</span>
+                    <span className="text-[9px] bg-slate-950 text-slate-400 px-1 py-0.5 rounded border border-slate-800 uppercase font-mono">{t.type}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{t.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* CONTEÚDO PRINCIPAL (DASHBOARD) */}
+        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+
+          {!isApRunning && (
+            <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-amber-300">O simulador de Access Point está atualmente desligado</h4>
+                <p className="text-xs text-amber-400/80 mt-1">
+                  Ative o serviço FakeAP no canto superior direito para começar a transmitir o sinal sem fios e interceptar conexões dos clientes-alvo.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* --- TAB 1: PAINEL DE CONTROLO GERAL --- */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium">Tempo em Execução</p>
+                    <p className="text-2xl font-mono font-bold text-slate-100 mt-1">
+                      {isApRunning ? formatUptime(uptime) : '00:00:00'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950 rounded-full border border-slate-800">
+                    <RefreshCw className={`h-5 w-5 text-indigo-400 ${isApRunning ? 'animate-spin' : ''}`} />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium">Clientes Ativos</p>
+                    <p className="text-2xl font-mono font-bold text-emerald-400 mt-1">
+                      {isApRunning ? clients.length : 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950 rounded-full border border-slate-800">
+                    <Users className="h-5 w-5 text-emerald-400" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium">Credenciais Capturadas</p>
+                    <p className="text-2xl font-mono font-bold text-rose-500 mt-1">
+                      {credentials.length}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950 rounded-full border border-slate-800">
+                    <Key className="h-5 w-5 text-rose-500 animate-pulse" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium">Tráfego Acumulado</p>
+                    <p className="text-sm font-mono font-bold text-slate-200 mt-1">
+                      ↑ {trafficStats.up} MB/s
+                    </p>
+                    <p className="text-sm font-mono font-bold text-slate-200">
+                      ↓ {trafficStats.down} MB/s
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950 rounded-full border border-slate-800">
+                    <Network className="h-5 w-5 text-cyan-400" />
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                
+                <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                      <Radio className="h-4 w-4 text-indigo-400" />
+                      Especificações do Ponto de Acesso
+                    </h3>
+                    <span className="text-xs text-slate-500 font-mono">Modo: Rogue AP</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">SSID Ativo</p>
+                      <p className="text-sm font-mono font-bold text-slate-100 flex items-center gap-2 mt-1">
+                        <Wifi className="h-3.5 w-3.5 text-emerald-500" />
+                        {apConfig.ssid}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Canal da Antena</p>
+                      <p className="text-sm font-mono font-bold text-slate-100 mt-1">
+                        Canal {apConfig.channel} <span className="text-xs text-slate-400">(2.412 GHz)</span>
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">BSSID (MAC Emulado)</p>
+                      <p className="text-sm font-mono font-bold text-slate-100 mt-1">
+                        {apConfig.bssid}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Tipo de Segurança</p>
+                      <p className="text-sm font-mono font-bold text-slate-100 flex items-center gap-2 mt-1">
+                        {apConfig.security === 'Open' ? (
+                          <>
+                            <WifiOff className="h-3.5 w-3.5 text-amber-500" />
+                            <span className="text-amber-500">Aberta (Sem Palavra-passe)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>WPA2 Personal</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-2">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Qualidade de Emissão da Antena</span>
+                      <span className="font-mono text-emerald-400">Excelente (100%)</span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-emerald-500 h-1.5 rounded-full w-full animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-5 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                      <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-emerald-400" />
+                        Portal Ativo
+                      </h3>
+                      <span className="text-xs bg-slate-950 text-emerald-400 px-2 py-0.5 rounded border border-slate-800">WEB</span>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Template do Servidor Web</p>
+                      <h4 className="text-sm font-bold text-slate-100">
+                        {templates.find(t => t.id === selectedTemplate)?.name}
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        {templates.find(t => t.id === selectedTemplate)?.desc}
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-slate-400">
+                      Este portal é servido automaticamente a todos os clientes que tentam navegar para qualquer URL HTTP externa através do mecanismo de DNS Spoofing / Redirect.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-950 p-2.5 rounded border border-slate-800/80 text-xs font-mono text-slate-400 flex items-center justify-between">
+                    <span>IP do Servidor: <strong className="text-slate-200">192.168.1.1</strong></span>
+                    <span className="text-indigo-400 flex items-center gap-1 cursor-pointer hover:underline">
+                      Ver Portal <ExternalLink className="h-3 w-3" />
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                      <Users className="h-4 w-4 text-indigo-400" />
+                      Clientes Ativos ({clients.length})
+                    </h3>
+                    <button 
+                      onClick={() => setActiveTab('clients')}
+                      className="text-xs text-indigo-400 hover:underline"
+                    >
+                      Ver Todos
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400">
+                          <th className="py-2 font-semibold">Cliente</th>
+                          <th className="py-2 font-semibold">Endereço IP</th>
+                          <th className="py-2 font-semibold">Sinal</th>
+                          <th className="py-2 font-semibold text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {clients.slice(0, 3).map(client => (
+                          <tr key={client.id} className="hover:bg-slate-800/20">
+                            <td className="py-3">
+                              <p className="font-bold text-slate-200">{client.hostname}</p>
+                              <p className="text-[10px] font-mono text-slate-500">{client.mac}</p>
+                            </td>
+                            <td className="py-3 font-mono text-slate-300">{client.ip}</td>
+                            <td className="py-3 font-mono text-slate-300">{client.signal} dBm</td>
+                            <td className="py-3 text-right">
+                              <button 
+                                onClick={() => handleKickClient(client.id, client.hostname)}
+                                className="bg-slate-800 hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 p-1 rounded border border-slate-700/60 transition-all"
+                                title="Desconectar cliente (Deauth)"
+                              >
+                                <WifiOff className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {clients.length === 0 && (
+                          <tr>
+                            <td colSpan="4" className="text-center py-6 text-slate-500 font-medium">
+                              Sem clientes conectados de momento.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                      <Key className="h-4 w-4 text-rose-500" />
+                      Últimas Credenciais Interceptadas
+                    </h3>
+                    <button 
+                      onClick={() => setActiveTab('credentials')}
+                      className="text-xs text-rose-400 hover:underline"
+                    >
+                      Ver Tudo
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {credentials.slice(0, 2).map(cred => (
+                      <div key={cred.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-indigo-950 text-indigo-400 px-2 py-0.5 rounded border border-indigo-900/30 font-semibold">{cred.service}</span>
+                            <span className="text-[10px] text-slate-500 font-mono">{cred.time}</span>
+                          </div>
+                          <p className="text-xs text-slate-300">
+                            Utilizador: <strong className="text-slate-100 font-mono">{cred.user}</strong>
+                          </p>
+                          <p className="text-xs text-slate-300">
+                            Palavra-passe: <strong className="text-emerald-400 font-mono bg-emerald-950/20 px-1 rounded border border-emerald-900/10">{cred.pass}</strong>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-slate-400 font-mono">{cred.ip}</p>
+                          <span className="inline-block mt-1 text-[9px] bg-emerald-950/40 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase">Sucesso</span>
+                        </div>
+                      </div>
+                    ))}
+                    {credentials.length === 0 && (
+                      <div className="text-center py-6 text-slate-500 font-medium">
+                        A aguardar submissões nos portais capturados...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* --- TAB 2: CONFIGURAÇÃO DO AP --- */}
+          {activeTab === 'config' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 max-w-4xl mx-auto space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-200">Definições da Antena e Rede Sem Fios</h2>
+                <p className="text-xs text-slate-400">Configure os parâmetros da sua interface Wi-Fi dedicada para a auditoria de Rogue AP.</p>
+              </div>
+
+              <form onSubmit={handleSaveConfig} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">Nome da Rede (SSID)</label>
+                    <input 
+                      type="text"
+                      value={apConfig.ssid}
+                      onChange={(e) => setApConfig({...apConfig, ssid: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                      placeholder="Ex: WIFI_PUBLICO"
+                    />
+                    <p className="text-[10px] text-slate-500">Este é o nome que os utilizadores verão nos seus telemóveis e computadores.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">Interface de Rede (Wi-Fi)</label>
+                    <select 
+                      value={apConfig.interface}
+                      onChange={(e) => setApConfig({...apConfig, interface: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                    >
+                      <option value="wlan0mon">wlan0mon (Modo Monitor)</option>
+                      <option value="wlan1mon">wlan1mon (Modo Monitor)</option>
+                      <option value="wlan0">wlan0 (Interface Integrada)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-500">A placa sem fios tem de suportar Modo Monitor e Injeção de Pacotes.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">Canal de Transmissão</label>
+                    <select 
+                      value={apConfig.channel}
+                      onChange={(e) => setApConfig({...apConfig, channel: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(ch => (
+                        <option key={ch} value={ch.toString()}>Canal {ch} (2.4 GHz)</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-500">Para melhores resultados, escolha o canal mais congestionado na área local.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">Tipo de Segurança Emulada</label>
+                    <select 
+                      value={apConfig.security}
+                      onChange={(e) => setApConfig({...apConfig, security: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                    >
+                      <option value="Open">Aberta / Sem Encriptação (Recomendado)</option>
+                      <option value="WPA2">WPA2 Personal (Requer Handshake)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-500">Redes abertas atraem mais conexões automáticas de dispositivos antigos ou configurados para auto-conectar.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">BSSID Emulado</label>
+                    <input 
+                      type="text"
+                      value={apConfig.bssid}
+                      onChange={(e) => setApConfig({...apConfig, bssid: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                      placeholder="00:11:22:33:44:55"
+                    />
+                    <p className="text-[10px] text-slate-500">Deixe em branco para gerar um endereço MAC aleatório no arranque.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">Potência de Transmissão (TxPower)</label>
+                    <select 
+                      value={apConfig.txPower}
+                      onChange={(e) => setApConfig({...apConfig, txPower: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                    >
+                      <option value="15">15 dBm (Baixo)</option>
+                      <option value="20">20 dBm (Médio / Padrão)</option>
+                      <option value="30">30 dBm (Máximo / Requer Placa Externa)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-500">Mais potência aumenta a cobertura do seu ponto de acesso falso.</p>
+                  </div>
+
+                </div>
+
+                <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setApConfig({
+                        ssid: 'WIFI_AEROPORTO_GRATIS',
+                        channel: '6',
+                        interface: 'wlan0mon',
+                        security: 'Open',
+                        bssid: '00:11:22:33:44:55',
+                        txPower: '20'
+                      });
+                      showToast('Configurações repostas', 'info');
+                    }}
+                    className="bg-slate-950 hover:bg-slate-800 text-slate-400 font-semibold px-4 py-2 rounded text-sm transition-all border border-slate-800"
+                  >
+                    Repor Padrão
+                  </button>
+                  <button 
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2 rounded text-sm transition-all shadow-md shadow-indigo-900/20"
+                  >
+                    Guardar e Aplicar
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* --- TAB 3: CLIENTES CONECTADOS --- */}
+          {activeTab === 'clients' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-200">Gestão de Clientes Conectados</h2>
+                  <p className="text-xs text-slate-400">Aqui pode gerir todos os dispositivos atualmente associados ao seu FakeAP.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setClients([
+                        { id: 1, mac: 'D4:A3:3D:88:C1:02', ip: '192.168.1.12', hostname: 'iPhone-de-Pedro', signal: -62, traffic: 124.5, connectedTime: '12m 4s', os: 'iOS' },
+                        { id: 2, mac: '70:F3:95:1A:BC:D4', ip: '192.168.1.45', hostname: 'Sams-S24-Ana', signal: -45, traffic: 342.1, connectedTime: '08m 15s', os: 'Android' }
+                      ]);
+                      showToast('Lista de clientes atualizada', 'success');
+                    }}
+                    className="bg-slate-950 hover:bg-slate-800 text-slate-300 font-semibold px-3 py-1.5 rounded text-xs border border-slate-800 flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Atualizar
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400">
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">Hostname / Dispositivo</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">Endereço IP</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">MAC Address</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">Sinal Wi-Fi</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">Tráfego Transferido</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider">Sistema Operativo</th>
+                      <th className="py-3 font-semibold text-xs uppercase tracking-wider text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {clients.map(client => (
+                      <tr key={client.id} className="hover:bg-slate-800/10">
+                        <td className="py-4">
+                          <p className="font-bold text-slate-200">{client.hostname}</p>
+                          <span className="text-[10px] bg-slate-950 text-slate-500 px-1.5 py-0.5 rounded font-mono border border-slate-800">{client.connectedTime}</span>
+                        </td>
+                        <td className="py-4 font-mono text-slate-300">{client.ip}</td>
+                        <td className="py-4 font-mono text-slate-400 text-xs">{client.mac}</td>
+                        <td className="py-4 font-mono text-slate-300">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            client.signal > -50 ? 'text-emerald-400 bg-emerald-950/20' : 
+                            client.signal > -70 ? 'text-amber-400 bg-amber-950/20' : 'text-rose-400 bg-rose-950/20'
+                          }`}>
+                            {client.signal} dBm
+                          </span>
+                        </td>
+                        <td className="py-4 font-mono text-slate-300">{client.traffic} MB</td>
+                        <td className="py-4">
+                          <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/50">
+                            {client.os}
+                          </span>
+                        </td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => handleKickClient(client.id, client.hostname)}
+                            className="bg-slate-950 hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 hover:border-rose-900/30 px-3 py-1.5 rounded text-xs border border-slate-800 transition-all font-semibold inline-flex items-center gap-1.5"
+                            title="Kick (Deauthentication Attack)"
+                          >
+                            <WifiOff className="h-3 w-3" /> Kick (Deauth)
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {clients.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="text-center py-10 text-slate-500 font-medium">
+                          A aguardar ligações de clientes de momento. Inicie o AP para transmitir.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* --- TAB 4: CREDENCIAIS CAPTURADAS --- */}
+          {activeTab === 'credentials' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-200">Credenciais Recolhidas</h2>
+                  <p className="text-xs text-slate-400">Visualização de credenciais e passwords recolhidas das vítimas em tempo real.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={clearCredentials}
+                    className="bg-slate-950 hover:bg-rose-950/30 hover:text-rose-400 text-slate-300 font-semibold px-3 py-1.5 rounded text-xs border border-slate-800 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-3 w-3" /> Limpar Lista
+                  </button>
+                  <button 
+                    onClick={() => {
+                      showToast('Base de dados exportada para creds_export.txt', 'success');
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded text-xs transition-all shadow flex items-center gap-2"
+                  >
+                    <Download className="h-3 w-3" /> Exportar Dados (.txt)
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {credentials.map(cred => (
+                  <div key={cred.id} className="bg-slate-950 border border-slate-800 rounded-lg p-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 h-1.5 w-full bg-indigo-600 group-hover:bg-emerald-500 transition-colors" />
+                    
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-[10px] bg-indigo-950 text-indigo-400 px-2 py-0.5 rounded border border-indigo-900/40 uppercase font-bold font-mono">
+                        {cred.service}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">{cred.time}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="bg-slate-900/50 p-2.5 rounded border border-slate-800/40 font-mono text-xs">
+                        <p className="text-[10px] text-slate-500">Utilizador / E-mail</p>
+                        <p className="text-slate-200 font-bold break-all mt-0.5">{cred.user}</p>
+                      </div>
+
+                      <div className="bg-slate-900/50 p-2.5 rounded border border-slate-800/40 font-mono text-xs">
+                        <p className="text-[10px] text-slate-500">Palavra-passe (Raw Password)</p>
+                        <p className="text-emerald-400 font-bold break-all mt-0.5">{cred.pass}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-slate-900 flex justify-between items-center text-[10px] text-slate-500">
+                      <span>IP: <strong className="text-slate-400">{cred.ip}</strong></span>
+                      <span>MAC: <strong className="text-slate-400">{cred.mac}</strong></span>
+                    </div>
+                  </div>
+                ))}
+
+                {credentials.length === 0 && (
+                  <div className="col-span-full text-center py-12 bg-slate-950 rounded-lg border border-slate-800 text-slate-500">
+                    Ainda nenhuma vítima submeteu dados no portal. Aguardando...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* --- TAB 5: TERMINAL DE LOGS DO SISTEMA --- */}
+          {activeTab === 'logs' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-200">Terminal de Saída de Logs</h2>
+                  <p className="text-xs text-slate-400">Diagnóstico detalhado dos serviços internos (hostapd, dnsmasq, captive-portal).</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setLogs([]);
+                    showToast('Terminal de logs limpo', 'info');
+                  }}
+                  className="bg-slate-950 hover:bg-slate-800 text-slate-300 font-semibold px-3 py-1.5 rounded text-xs border border-slate-800 flex items-center gap-2"
+                >
+                  <Trash2 className="h-3 w-3" /> Limpar Consola
+                </button>
+              </div>
+
+              <div className="bg-black border border-slate-800 rounded-lg p-4 font-mono text-xs h-[450px] overflow-y-auto flex flex-col space-y-1.5 shadow-inner">
+                <div className="text-slate-500 border-b border-slate-900 pb-2 mb-2">
+                  # cat /var/log/fakeap.log | tail -n 100
+                </div>
+
+                {logs.map(log => {
+                  let badgeColor = "text-cyan-400";
+                  if (log.level === 'warning') badgeColor = "text-amber-500";
+                  if (log.level === 'danger') badgeColor = "text-rose-500";
+                  if (log.level === 'success') badgeColor = "text-emerald-400";
+
+                  return (
+                    <div key={log.id} className="hover:bg-slate-950/80 p-0.5 rounded transition-all">
+                      <span className="text-slate-500 mr-2">[{log.time}]</span>
+                      <span className={`font-bold mr-2 text-[10px] uppercase border px-1 rounded-sm ${
+                        log.service === 'hostapd' ? 'border-indigo-900 text-indigo-400 bg-indigo-950/20' : 
+                        log.service === 'dnsmasq' ? 'border-cyan-900 text-cyan-400 bg-cyan-950/20' : 'border-slate-800 text-slate-300'
+                      }`}>
+                        {log.service}
+                      </span>
+                      <span className={`${badgeColor}`}>{log.message}</span>
+                    </div>
+                  );
+                })}
+                <div ref={logsEndRef} />
+              </div>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* --- RODAPÉ DO PROJETO --- */}
+      <footer className="bg-slate-950 border-t border-slate-900 text-slate-500 px-6 py-4 text-xs text-center flex flex-col sm:flex-row justify-between items-center gap-2">
+        <p>FakeAP Security Framework - Desenvolvido para fins estritos de Auditoria Ética e Pentesting.</p>
+        <div className="flex items-center gap-4">
+          <a href="https://github.com/ChaptalAdrien/fakeap" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 flex items-center gap-1">
+            Repositório Oficial <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </footer>
+
+    </div>
+  );
+}
